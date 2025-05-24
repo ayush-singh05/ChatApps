@@ -12,15 +12,19 @@ export async function signup(req,res){
         }
 
         const existUser = await User.findOne({email});
-
+        
+        if(password < 8) {
+            return res.status(400).json({message: "Password must be greate or equal to 8 character"})
+        }
         if(existUser) return res.status(400).json({message: "Email should be unique"});
 
         const idx = Math.floor(Math.random() * 100) + 1;
         
         const randomAvatar = `https://avatar.iran.liara.run/public/${idx}.png`;
 
-        const newUser = new User.create({
-            email,fullName,
+        const newUser = await User.create({
+            email,
+            fullName,
             password,
             profilePic: randomAvatar,
         })
@@ -29,12 +33,19 @@ export async function signup(req,res){
         expiresIn:"7d",
     })
 
-    res.cookie("jwt",token{
-        maxAge:7 * 24 * 60 *60 * 10009 
+    res.cookie("jwt",token,{
+        maxAge:7 * 24 * 60 *60 * 10009 ,
+        httpOnly: true,
+        sameSite: "Strict",
+        secure: process.env.NODE_ENV === "production"
     })
 
+    res.status(201).json({sucesss: true, user:newUser});
+
+
     } catch (error) {
-        
+        console.log("Error in signout",error);
+        res.status(500).json({message: "Internal Error"});
     }
 }
 
