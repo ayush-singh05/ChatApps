@@ -79,7 +79,7 @@ export async function login(req, res) {
 
     const isPasswordCorrect = await user.matchPassword(password);
     if (!isPasswordCorrect)
-      return res.sataus(401).json({ message: "Invalid email or Password" });
+      return res.status(401).json({ message: "Invalid email or Password" });
 
     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET_KEY, {
       expiresIn: "7d",
@@ -102,4 +102,52 @@ export async function login(req, res) {
 export async function logout(req, res) {
   res.clearCookie("jwt");
   res.status(200).json({ success: true, message: "Logout successfully " });
+}
+
+export async function onboard(req, res) {
+  try {
+    const userId = req.user._id;
+
+    const { fullName, bio, nativeLanguage, learningLanguage,location} = req.body;
+    if(!fullName || !bio || !nativeLanguage || !learningLanguage || !location) {
+      return res.status(400).json({
+        message: "All fields are required",
+        missingFields: [
+          !fullName && "fullName",
+          !bio && "bio",
+          !nativeLanguage && "nativeLanguage",
+          !learningLanguage && "learningLanguage",
+          !location && "location",
+        ].filter(Boolean),
+      });
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(userId,
+      {
+        ...req.body,
+        isOnboard: true,
+      },
+      {
+        new: true
+      }
+    );
+    if(!updatedUser) return res.status(404).json({message: "User Not Found"});
+    try {
+      const strem = await upsertStreamUser({
+        id: updatedUser._id.toString(),
+        name: updatedUser.fullName,
+        image: updatedUser.profilePic || "",
+      });
+
+      console.log(`Steram user created for ${updatedUser.fullName}`);
+    } catch (error) {
+      console.log("Erron in stream", error);
+    }
+
+    res.status(200).json({success: true, user: updatedUser});
+  } catch (error) {
+    console.log("Onboarding error",error);
+    res.status(500).json({message: "Internal Server Error"});
+    
+  }
 }
